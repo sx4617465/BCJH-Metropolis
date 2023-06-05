@@ -7,6 +7,7 @@
 #include "Recipe.hpp"
 #include <vector>
 #include "utils/json.hpp"
+#include "../config.hpp"
 Recipe::Recipe(Json::Value &recipe) {
     this->name = recipe["name"].asString();
     this->id = recipe["recipeId"].asInt();
@@ -18,19 +19,36 @@ Recipe::Recipe(Json::Value &recipe) {
     this->cookAbility.steam = recipe["steam"].asInt();
     this->cookAbility.fry = recipe["fry"].asInt();
     this->cookAbility.knife = recipe["knife"].asInt();
-    this->materials = this->getMaterials(recipe["materials"]);
+    this->getMaterials(recipe["materials"]);
     this->flavor = this->getFlavor(recipe["condiment"]);
 }
+// Flavor Recipe::getFlavor(Json::Value &flavorJson) {
+//     std::string flavorStr = flavorJson.asString();
+//     Flavor flavor;
+//     flavor.sweet = flavorStr.find("Sweet") != std::string::npos;
+//     flavor.salty = flavorStr.find("Salty") != std::string::npos;
+//     flavor.sour = flavorStr.find("Sour") != std::string::npos;
+//     flavor.bitter = flavorStr.find("Bitter") != std::string::npos;
+//     flavor.spicy = flavorStr.find("Spicy") != std::string::npos;
+//     flavor.tasty = flavorStr.find("Tasty") != std::string::npos;
+//     return flavor;
+// }
 Flavor Recipe::getFlavor(Json::Value &flavorJson) {
     std::string flavorStr = flavorJson.asString();
-    Flavor flavor;
-    flavor.sweet = flavorStr.find("Sweet") != std::string::npos;
-    flavor.salty = flavorStr.find("Salty") != std::string::npos;
-    flavor.sour = flavorStr.find("Sour") != std::string::npos;
-    flavor.bitter = flavorStr.find("Bitter") != std::string::npos;
-    flavor.spicy = flavorStr.find("Spicy") != std::string::npos;
-    flavor.tasty = flavorStr.find("Tasty") != std::string::npos;
-    return flavor;
+    Flavor f;
+    if (flavorStr.find("Sweet") != std::string::npos)
+        f.sweet = true;
+    else if (flavorStr.find("Salty") != std::string::npos)
+        f.salty = true;
+    else if (flavorStr.find("Sour") != std::string::npos)
+        f.sour = true;
+    else if (flavorStr.find("Bitter") != std::string::npos)
+        f.bitter = true;
+    else if (flavorStr.find("Spicy") != std::string::npos)
+        f.spicy = true;
+    else if (flavorStr.find("Tasty") != std::string::npos)
+        f.tasty = true;
+    return f;
 }
 const struct MaterialList {
     int meat[16] = {1, 3, 4, 5, 7, 8, 9, 12, 26, 27, 28, 38, 39, 40, 43, 44};
@@ -39,37 +57,7 @@ const struct MaterialList {
     int fish[7] = {2, 12, 24, 32, 37, 41, 42};
     int creation[6] = {11, 20, 21, 29, 34, 35};
 } materialList;
-Materials Recipe::getMaterials(Json::Value &materialsJson) {
-    Materials materials;
-    for (auto m : materialsJson) {
-        int materialId = m["material"].asInt();
-        for (auto meat : materialList.meat) {
-            if (materialId == meat) {
-                materials.meat = true;
-                break;
-            }
-        }
-        for (auto vegetable : materialList.vegetable) {
-            if (materialId == vegetable) {
-                materials.vegetable = true;
-                break;
-            }
-        }
-        for (auto fish : materialList.fish) {
-            if (materialId == fish) {
-                materials.fish = true;
-                break;
-            }
-        }
-        for (auto creation : materialList.creation) {
-            if (materialId == creation) {
-                materials.creation = true;
-                break;
-            }
-        }
-    }
-    return materials;
-}
+
 void Recipe::print() {
     std::cout << "Name: " << this->name << std::endl;
     std::cout << "ID: " << this->id << std::endl;
@@ -78,7 +66,7 @@ void Recipe::print() {
     std::cout << " (Num: " << rb.dishNum << ", +" << rb.dishBuff << "%)"
               << std::endl;
     std::cout << "Price: " << this->price << std::endl;
-    this->materials.print();
+    this->materialCategories.print();
     this->cookAbility.print();
     this->flavor.print();
 }
@@ -105,9 +93,9 @@ void loadRecipe(std::map<int, Recipe> &recipeList) {
 }
 
 // #define jsonStr2Int(v) atoi(v.asCString())
-RarityBuff Recipe::rarityBuff[5];
+dishBuff Recipe::rarityBuff[5];
 void Recipe::initRarityBuff(Json::Value &usrBuff) {
-    RarityBuff r[5];
+    dishBuff r[5];
     r[0].dishNum = 40;
     r[1].dishNum = 30;
     r[2].dishNum = 25;
@@ -125,5 +113,44 @@ void Recipe::initRarityBuff(Json::Value &usrBuff) {
     r[4].dishBuff = getInt(usrBuff["PriceBuff_5"]);
     for (int i = 0; i < 5; i++) {
         rarityBuff[i] = r[i];
+    }
+    if (MODE == 2) {
+        for (int i = 0; i < 5; i++) {
+            rarityBuff[i].dishNum = 1;
+        }
+    }
+}
+void Recipe::getMaterials(Json::Value &materialsJson) {
+    this->materials.clear();
+    this->materialCategories = Materials();
+    for (auto m : materialsJson) {
+        int materialId = m["material"].asInt();
+        int quantity = m["quantity"].asInt();
+        this->materials[materialId] = quantity;
+
+        for (auto meat : materialList.meat) {
+            if (materialId == meat) {
+                materialCategories.meat = true;
+                break;
+            }
+        }
+        for (auto vegetable : materialList.vegetable) {
+            if (materialId == vegetable) {
+                materialCategories.vegetable = true;
+                break;
+            }
+        }
+        for (auto fish : materialList.fish) {
+            if (materialId == fish) {
+                materialCategories.fish = true;
+                break;
+            }
+        }
+        for (auto creation : materialList.creation) {
+            if (materialId == creation) {
+                materialCategories.creation = true;
+                break;
+            }
+        }
     }
 }
